@@ -35,6 +35,10 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111, USA.
  *
  * Change Log:
+ * 2017-03-27
+ * Check if the group matches one of the user's groups
+ * thus supporting SSSD trusted domains users
+ *
  * 2010-02-24 hno
  * Removed group number limitation and fixed related uninitialized
  * pointer reference (Bug #2813)
@@ -117,12 +121,39 @@ validate_user_gr(char *username, char *groupname)
         fprintf(stderr, "ERROR: Group does not exist '%s'\n", groupname);
         return 0;
     } else {
-        while (*(g->gr_mem) != NULL) {
-            if (strcmp(*((g->gr_mem)++), username) == 0) {
+        ngroups = 100;
+
+        groups = (gid_t *) malloc(ngroups * sizeof (gid_t));
+        if (groups == NULL) {
+            fprintf(stderr, "ERROR: Cannot allocate memory\n");
+            return 0;
+        }
+
+        /* Fetch passwd structure (contains first group ID for user) */
+
+        if ((pw = getpwnam(username)) == NULL) {
+            fprintf(stderr, "ERROR: User does not exist '%s'\n", username);
+            return 0;
+        }
+
+       /* Retrieve group list */
+
+        if (getgrouplist(username, pw->pw_gid, groups, &ngroups) == -1) {
+            fprintf(stderr, "getgrouplist() returned -1; ngroups = %d\n",
+                ngroups);
+            return 0;
+        }
+
+        /* Check if the user belongs to the desired group */
+
+        for (j = 0; j < ngroups; j++) {
+            if (groups[j] == g->gr_gid) {
+                free(groups);
                 return 1;
             }
         }
     }
+    free(groups);
     return 0;
 }
 
