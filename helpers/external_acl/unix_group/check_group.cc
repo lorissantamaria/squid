@@ -116,6 +116,9 @@ validate_user_gr(char *username, char *groupname)
      * /etc/group file
      */
     struct group *g;
+    int j, ngroups;
+    gid_t *groups;
+    struct passwd *pw;
 
     if ((g = getgrnam(groupname)) == NULL) {
         fprintf(stderr, "ERROR: Group does not exist '%s'\n", groupname);
@@ -126,6 +129,7 @@ validate_user_gr(char *username, char *groupname)
         groups = (gid_t *) malloc(ngroups * sizeof (gid_t));
         if (groups == NULL) {
             fprintf(stderr, "ERROR: Cannot allocate memory\n");
+            free(groups);
             return 0;
         }
 
@@ -133,6 +137,7 @@ validate_user_gr(char *username, char *groupname)
 
         if ((pw = getpwnam(username)) == NULL) {
             fprintf(stderr, "ERROR: User does not exist '%s'\n", username);
+            free(groups);
             return 0;
         }
 
@@ -141,6 +146,7 @@ validate_user_gr(char *username, char *groupname)
         if (getgrouplist(username, pw->pw_gid, groups, &ngroups) == -1) {
             fprintf(stderr, "getgrouplist() returned -1; ngroups = %d\n",
                 ngroups);
+            free(groups);
             return 0;
         }
 
